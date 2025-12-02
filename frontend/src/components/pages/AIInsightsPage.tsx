@@ -147,6 +147,50 @@ export function AIInsightsPage() {
     fetchForecast();
   }, []);
 
+  const handleExportReport = () => {
+    // Prepare data for export
+    const reportData = {
+      reportDate: new Date().toLocaleDateString(),
+      reportTime: new Date().toLocaleTimeString(),
+      insights: liveInsights,
+      forecast: predictionData,
+    };
+
+    // Create CSV content
+    let csvContent = "DataBrew AI Insights Report\n";
+    csvContent += `Generated: ${reportData.reportDate} ${reportData.reportTime}\n\n`;
+
+    csvContent += "AI INSIGHTS\n";
+    csvContent += "Title,Description,Impact,Recommendation,Confidence\n";
+
+    reportData.insights.forEach((insight) => {
+      csvContent += `"${insight.title}","${insight.description}","${insight.impact}","${insight.recommendation}",${insight.confidence}%\n`;
+    });
+
+    csvContent += "\nSALES FORECAST\n";
+    csvContent += "Day,Predicted Sales,Actual Sales\n";
+
+    reportData.forecast.forEach((day) => {
+      csvContent += `${day.day},${day.predicted},${day.actual || "N/A"}\n`;
+    });
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `DataBrew_AI_Report_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    link.style.visibility = "hidden";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleGenerateInsights = async () => {
     setGenerating(true);
     try {
@@ -247,6 +291,7 @@ export function AIInsightsPage() {
             <Button
               variant="outline"
               className="border-[#8b5e3c] text-[#8b5e3c] hover:bg-[#8b5e3c] hover:text-white"
+              onClick={handleExportReport}
             >
               <Download className="w-4 h-4 mr-2" />
               Export Report
