@@ -497,10 +497,11 @@ def get_best_selling():
                 SELECT SUM(transaction_qty) as units_sold
                 FROM transactions
                 WHERE DATE(transaction_date) = DATE_SUB('2025-11-30', INTERVAL 1 DAY)
-                AND product_detail = %s
+                AND product_detail = :product_detail
             """
 
-            yesterday_df = pd.read_sql(query_yesterday, engine, params=[product['product_detail']])
+            from sqlalchemy import text
+            yesterday_df = pd.read_sql(text(query_yesterday), engine, params={'product_detail': product['product_detail']})
             yesterday_units = float(yesterday_df['units_sold'].iloc[0] or 0) if not yesterday_df.empty else 0
 
             change_pct = 0
@@ -942,3 +943,415 @@ def get_cash_flow(period: str = "month"):
     except Exception as e:
         print(f"Error in cash-flow endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching cash flow: {str(e)}")
+
+
+# ============================================================================
+# INGREDIENT MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.get("/ingredients")
+def get_ingredients():
+    """
+    Get all ingredients with their stock levels
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        query = """
+            SELECT 
+                id,
+                name,
+                unit,
+                stock_quantity,
+                reorder_level,
+                unit_cost,
+                supplier,
+                notes,
+                created_at,
+                updated_at
+            FROM ingredients
+            ORDER BY name
+        """
+        
+        df = pd.read_sql(query, engine)
+        
+        if df.empty:
+            return {"ingredients": []}
+        
+        # Convert to list of dictionaries
+        ingredients = df.to_dict('records')
+        
+        # Format dates and numbers
+        for ingredient in ingredients:
+            ingredient['stock_quantity'] = float(ingredient['stock_quantity'])
+            ingredient['reorder_level'] = float(ingredient['reorder_level'])
+            ingredient['unit_cost'] = float(ingredient['unit_cost']) if ingredient['unit_cost'] else 0
+            ingredient['created_at'] = ingredient['created_at'].isoformat() if ingredient['created_at'] else None
+            ingredient['updated_at'] = ingredient['updated_at'].isoformat() if ingredient['updated_at'] else None
+            
+            # Check if low stock
+            ingredient['is_low_stock'] = ingredient['stock_quantity'] < ingredient['reorder_level']
+        
+        return {"ingredients": ingredients}
+        
+    except Exception as e:
+        print(f"Error in ingredients endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching ingredients: {str(e)}")
+
+
+@app.post("/ingredients")
+def create_ingredient(ingredient: dict):
+    """
+    Create a new ingredient
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        required_fields = ['name', 'unit', 'stock_quantity', 'reorder_level']
+        for field in required_fields:
+            if field not in ingredient:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+        
+        query = """
+            INSERT INTO ingredients (name, unit, stock_quantity, reorder_level, unit_cost, supplier, notes)
+            VALUES (:name, :unit, :stock_quantity, :reorder_level, :unit_cost, :supplier, :notes)
+        """
+        
+        params = {
+            'name': ingredient['name'],
+            'unit': ingredient['unit'],
+            'stock_quantity': ingredient['stock_quantity'],
+            'reorder_level': ingredient['reorder_level'],
+            'unit_cost': ingredient.get('unit_cost', 0),
+            'supplier': ingredient.get('supplier', ''),
+            'notes': ingredient.get('notes', '')
+        }
+        
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            result = conn.execute(text(query), params)
+            try:
+                ingredient_id = result.lastrowid
+            except Exception:
+                # Fallback for some SQLAlchemy versions
+                ingredient_id = conn.execute(text("SELECT LAST_INSERT_ID() AS id")).scalar()
+        
+        return {"message": "Ingredient created successfully", "id": ingredient_id}
+        
+    except Exception as e:
+        print(f"Error creating ingredient: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating ingredient: {str(e)}")
+
+
+@app.put("/ingredients/{ingredient_id}")
+def update_ingredient(ingredient_id: int, ingredient: dict):
+    """
+    Update an existing ingredient
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        query = """
+            UPDATE ingredients 
+            SET name = :name,
+                unit = :unit,
+                stock_quantity = :stock_quantity,
+                reorder_level = :reorder_level,
+                unit_cost = :unit_cost,
+                supplier = :supplier,
+                notes = :notes
+            WHERE id = :id
+        """
+        
+        params = {
+            'id': ingredient_id,
+            'name': ingredient['name'],
+            'unit': ingredient['unit'],
+            'stock_quantity': ingredient['stock_quantity'],
+            'reorder_level': ingredient['reorder_level'],
+            'unit_cost': ingredient.get('unit_cost', 0),
+            'supplier': ingredient.get('supplier', ''),
+            'notes': ingredient.get('notes', '')
+        }
+        
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(text(query), params)
+        
+        return {"message": "Ingredient updated successfully"}
+        
+    except Exception as e:
+        print(f"Error updating ingredient: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating ingredient: {str(e)}")
+
+
+@app.delete("/ingredients/{ingredient_id}")
+def delete_ingredient(ingredient_id: int):
+    """
+    Delete an ingredient
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        from sqlalchemy import text
+        query = "DELETE FROM ingredients WHERE id = :id"
+        
+        with engine.begin() as conn:
+            conn.execute(text(query), {"id": ingredient_id})
+        
+        return {"message": "Ingredient deleted successfully"}
+        
+    except Exception as e:
+        print(f"Error deleting ingredient: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error deleting ingredient: {str(e)}")
+
+
+@app.get("/products")
+def get_products():
+    """
+    Get all products (coffee items)
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        query = """
+            SELECT 
+                id,
+                product_name,
+                product_type,
+                selling_price,
+                description,
+                is_active,
+                created_at,
+                updated_at
+            FROM products
+            WHERE is_active = TRUE
+            ORDER BY product_name
+        """
+        
+        df = pd.read_sql(query, engine)
+        
+        if df.empty:
+            return {"products": []}
+        
+        products = df.to_dict('records')
+        
+        for product in products:
+            product['selling_price'] = float(product['selling_price'])
+            product['created_at'] = product['created_at'].isoformat() if product['created_at'] else None
+            product['updated_at'] = product['updated_at'].isoformat() if product['updated_at'] else None
+        
+        return {"products": products}
+        
+    except Exception as e:
+        print(f"Error fetching products: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching products: {str(e)}")
+
+
+@app.post("/products")
+def create_product(product: dict):
+    """
+    Create a new product
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        required_fields = ['product_name', 'product_type', 'selling_price']
+        for field in required_fields:
+            if field not in product:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+        
+        query = """
+            INSERT INTO products (product_name, product_type, selling_price, description)
+            VALUES (:product_name, :product_type, :selling_price, :description)
+        """
+        
+        params = {
+            'product_name': product['product_name'],
+            'product_type': product['product_type'],
+            'selling_price': product['selling_price'],
+            'description': product.get('description', '')
+        }
+        
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            result = conn.execute(text(query), params)
+            try:
+                product_id = result.lastrowid
+            except Exception:
+                product_id = conn.execute(text("SELECT LAST_INSERT_ID() AS id")).scalar()
+        
+        return {"message": "Product created successfully", "id": product_id}
+        
+    except Exception as e:
+        print(f"Error creating product: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating product: {str(e)}")
+
+
+@app.get("/products/{product_id}/ingredients")
+def get_product_ingredients(product_id: int):
+    """
+    Get all ingredients for a specific product (recipe)
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        query = """
+            SELECT 
+                pi.id,
+                pi.product_id,
+                pi.ingredient_id,
+                pi.quantity_needed,
+                pi.notes,
+                i.name as ingredient_name,
+                i.unit,
+                i.stock_quantity,
+                p.product_name
+            FROM product_ingredients pi
+            JOIN ingredients i ON pi.ingredient_id = i.id
+            JOIN products p ON pi.product_id = p.id
+            WHERE pi.product_id = %s
+            ORDER BY i.name
+        """
+        
+        df = pd.read_sql(query, engine, params=(product_id,))
+        
+        if df.empty:
+            return {"product_ingredients": []}
+        
+        ingredients = df.to_dict('records')
+        
+        for ing in ingredients:
+            ing['quantity_needed'] = float(ing['quantity_needed'])
+            ing['stock_quantity'] = float(ing['stock_quantity'])
+            
+            # Calculate how many products can be made with current stock
+            if ing['quantity_needed'] > 0:
+                ing['units_available'] = int(ing['stock_quantity'] / ing['quantity_needed'])
+            else:
+                ing['units_available'] = 0
+        
+        return {"product_ingredients": ingredients}
+        
+    except Exception as e:
+        print(f"Error fetching product ingredients: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching product ingredients: {str(e)}")
+
+
+@app.post("/products/{product_id}/ingredients")
+def add_product_ingredient(product_id: int, ingredient_data: dict):
+    """
+    Add an ingredient to a product recipe
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        required_fields = ['ingredient_id', 'quantity_needed']
+        for field in required_fields:
+            if field not in ingredient_data:
+                raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+        
+        query = """
+            INSERT INTO product_ingredients (product_id, ingredient_id, quantity_needed, notes)
+            VALUES (:product_id, :ingredient_id, :quantity_needed, :notes)
+            ON DUPLICATE KEY UPDATE 
+                quantity_needed = :quantity_needed,
+                notes = :notes
+        """
+        
+        params = {
+            'product_id': product_id,
+            'ingredient_id': ingredient_data['ingredient_id'],
+            'quantity_needed': ingredient_data['quantity_needed'],
+            'notes': ingredient_data.get('notes', '')
+        }
+        
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(text(query), params)
+        
+        return {"message": "Product ingredient added successfully"}
+        
+    except Exception as e:
+        print(f"Error adding product ingredient: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error adding product ingredient: {str(e)}")
+
+
+@app.delete("/products/{product_id}/ingredients/{ingredient_id}")
+def remove_product_ingredient(product_id: int, ingredient_id: int):
+    """
+    Remove an ingredient from a product recipe
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        from sqlalchemy import text
+        query = "DELETE FROM product_ingredients WHERE product_id = :product_id AND ingredient_id = :ingredient_id"
+        
+        with engine.begin() as conn:
+            conn.execute(text(query), {"product_id": product_id, "ingredient_id": ingredient_id})
+        
+        return {"message": "Product ingredient removed successfully"}
+        
+    except Exception as e:
+        print(f"Error removing product ingredient: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error removing product ingredient: {str(e)}")
+
+
+@app.get("/products/{product_id}/cost-analysis")
+def get_product_cost_analysis(product_id: int):
+    """
+    Calculate the cost breakdown and profit margin for a product
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        query = """
+            SELECT 
+                p.id,
+                p.product_name,
+                p.selling_price,
+                SUM(pi.quantity_needed * i.unit_cost) as total_cost,
+                GROUP_CONCAT(CONCAT(i.name, ': ', pi.quantity_needed, ' ', i.unit) SEPARATOR ', ') as ingredients_used
+            FROM products p
+            LEFT JOIN product_ingredients pi ON p.id = pi.product_id
+            LEFT JOIN ingredients i ON pi.ingredient_id = i.id
+            WHERE p.id = %s
+            GROUP BY p.id, p.product_name, p.selling_price
+        """
+        
+        df = pd.read_sql(query, engine, params=(product_id,))
+        
+        if df.empty:
+            raise HTTPException(status_code=404, detail="Product not found")
+        
+        result = df.iloc[0].to_dict()
+        
+        selling_price = float(result['selling_price'])
+        total_cost = float(result['total_cost']) if result['total_cost'] else 0
+        profit = selling_price - total_cost
+        profit_margin = (profit / selling_price * 100) if selling_price > 0 else 0
+        
+        return {
+            "product_id": result['id'],
+            "product_name": result['product_name'],
+            "selling_price": selling_price,
+            "total_cost": total_cost,
+            "profit": profit,
+            "profit_margin": round(profit_margin, 2),
+            "ingredients_used": result['ingredients_used']
+        }
+        
+    except Exception as e:
+        print(f"Error in cost analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error calculating cost: {str(e)}")

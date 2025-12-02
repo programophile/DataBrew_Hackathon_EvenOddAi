@@ -6,6 +6,7 @@ import { SalesAnalyticsPage } from "./components/pages/SalesAnalyticsPage";
 import { InventoryPage } from "./components/pages/InventoryPage";
 import { StaffManagementPage } from "./components/pages/StaffManagementPage";
 import { AIInsightsPage } from "./components/pages/AIInsightsPage";
+import { IngredientsPage } from "./components/pages/IngredientsPage";
 import { SettingsPage } from "./components/pages/SettingsPage";
 import { LoginPage } from "./components/auth/LoginPage";
 import { SignupPage } from "./components/auth/SignupPage";
@@ -65,6 +66,8 @@ function App() {
         return <SalesAnalyticsPage />;
       case "inventory":
         return <InventoryPage />;
+      case "ingredients":
+        return <IngredientsPage />;
       case "staff":
         return <StaffManagementPage />;
       case "ai-insights":

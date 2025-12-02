@@ -1,4 +1,14 @@
-import { Home, TrendingUp, Package, Users, Sparkles, Settings, LogOut, Coffee } from "lucide-react";
+import {
+  Home,
+  TrendingUp,
+  Package,
+  Users,
+  Sparkles,
+  Settings,
+  LogOut,
+  Coffee,
+  Wheat,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 
@@ -6,6 +16,7 @@ const menuItems = [
   { icon: Home, label: "Dashboard", id: "dashboard" },
   { icon: TrendingUp, label: "Sales Analytics", id: "sales" },
   { icon: Package, label: "Inventory", id: "inventory" },
+  { icon: Wheat, label: "Ingredients", id: "ingredients" },
   { icon: Users, label: "Staff Management", id: "staff" },
   { icon: Sparkles, label: "AI Insights", id: "ai-insights" },
   { icon: Settings, label: "Settings", id: "settings" },
@@ -60,7 +71,10 @@ export function Sidebar({ activePage, onPageChange }: SidebarProps) {
             <p className="text-xs text-[#8b5e3c]/60">Owner</p>
           </div>
         </div>
-        <Button variant="outline" className="w-full border-[#d8c3a5] text-[#8b5e3c] hover:bg-[#d8c3a5]/20">
+        <Button
+          variant="outline"
+          className="w-full border-[#d8c3a5] text-[#8b5e3c] hover:bg-[#d8c3a5]/20"
+        >
           <LogOut className="w-4 h-4 mr-2" />
           Logout
         </Button>

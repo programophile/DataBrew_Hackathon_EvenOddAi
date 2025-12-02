@@ -152,4 +152,198 @@ export const apiService = {
       throw error;
     }
   },
+
+  // Create ingredient
+  addIngredient: async (payload: {
+    name: string;
+    unit: string;
+    stock_quantity: number;
+    reorder_level: number;
+    unit_cost?: number;
+    supplier?: string;
+    notes?: string;
+  }) => {
+    console.log('[API] addIngredient called');
+    console.log('[API] URL:', `${API_BASE_URL}/ingredients`);
+    console.log('[API] Payload:', payload);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/ingredients`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('[API] Response status:', response.status);
+      console.log('[API] Response ok:', response.ok);
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('[API] Error response:', text);
+        throw new Error(`Add ingredient failed: ${response.status} ${text}`);
+      }
+
+      const result = await response.json();
+      console.log('[API] Success result:', result);
+      return result;
+    } catch (error) {
+      console.error('[API] Fetch error:', error);
+      throw error;
+    }
+  },
+
+  // Update ingredient
+  updateIngredient: async (
+    id: number,
+    payload: {
+      name: string;
+      unit: string;
+      stock_quantity: number;
+      reorder_level: number;
+      unit_cost?: number;
+      supplier?: string;
+      notes?: string;
+    }
+  ) => {
+    const response = await fetch(`${API_BASE_URL}/ingredients/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Update ingredient failed: ${response.status} ${text}`);
+    }
+    return response.json();
+  },
+
+  // Delete ingredient
+  deleteIngredient: async (id: number) => {
+    const response = await fetch(`${API_BASE_URL}/ingredients/${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Delete ingredient failed: ${response.status} ${text}`);
+    }
+    return response.json();
+  },
+
+  // Create product
+  addProduct: async (payload: {
+    product_name: string;
+    product_type: string;
+    selling_price: number;
+    description?: string;
+  }) => {
+    console.log('[API] addProduct called');
+    console.log('[API] URL:', `${API_BASE_URL}/products`);
+    console.log('[API] Payload:', payload);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/products`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('[API] Response status:', response.status);
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('[API] Error response:', text);
+        throw new Error(`Add product failed: ${response.status} ${text}`);
+      }
+
+      const result = await response.json();
+      console.log('[API] Success result:', result);
+      return result;
+    } catch (error) {
+      console.error('[API] Fetch error:', error);
+      throw error;
+    }
+  },
+
+  // Add ingredient to product recipe
+  addProductIngredient: async (
+    productId: number,
+    payload: { ingredient_id: number; quantity_needed: number; notes?: string }
+  ) => {
+    console.log('[API] addProductIngredient called');
+    console.log('[API] URL:', `${API_BASE_URL}/products/${productId}/ingredients`);
+    console.log('[API] Payload:', payload);
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/products/${productId}/ingredients`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      console.log('[API] Response status:', response.status);
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('[API] Error response:', text);
+        throw new Error(
+          `Add recipe ingredient failed: ${response.status} ${text}`
+        );
+      }
+
+      const result = await response.json();
+      console.log('[API] Success result:', result);
+      return result;
+    } catch (error) {
+      console.error('[API] Fetch error:', error);
+      throw error;
+    }
+  },
+
+  // Remove ingredient from product recipe
+  removeProductIngredient: async (productId: number, ingredientId: number) => {
+    const response = await fetch(
+      `${API_BASE_URL}/products/${productId}/ingredients/${ingredientId}`,
+      { method: "DELETE" }
+    );
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `Remove recipe ingredient failed: ${response.status} ${text}`
+      );
+    }
+    return response.json();
+  },
+
+  // Get all ingredients
+  getIngredients: async () => {
+    const response = await fetch(`${API_BASE_URL}/ingredients`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Get ingredients failed: ${response.status} ${text}`);
+    }
+    return response.json();
+  },
+
+  // Get all products
+  getProducts: async () => {
+    const response = await fetch(`${API_BASE_URL}/products`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Get products failed: ${response.status} ${text}`);
+    }
+    return response.json();
+  },
+
+  // Get product ingredients
+  getProductIngredients: async (productId: number) => {
+    const response = await fetch(`${API_BASE_URL}/products/${productId}/ingredients`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Get product ingredients failed: ${response.status} ${text}`);
+    }
+    return response.json();
+  },
 };
