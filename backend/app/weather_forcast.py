@@ -8,7 +8,7 @@ longitude = 90.3943
 
 # Generate start and end date (today → next 30 days)
 start_date = datetime.today().date()
-end_date = start_date + timedelta(days=30)
+end_date = start_date + timedelta(days=7)
 
 # Format as YYYY-MM-DD for Visual Crossing
 start_str = start_date.strftime("%Y-%m-%d")

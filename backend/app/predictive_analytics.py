@@ -1,16 +1,10 @@
-"""
-Predictive Analytics Service
-Combines holiday data, weather forecast, and historical sales data 
-to generate AI-powered insights using Gemini
-"""
-
-import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import json
 import re
+from groq import Groq
 
 # Import local modules
 from .holiday import get_next_30_days_holidays, format_holidays_for_analysis
@@ -18,19 +12,19 @@ from .holiday import get_next_30_days_holidays, format_holidays_for_analysis
 # Load environment variables
 load_dotenv()
 
-# Configure Gemini API
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+# Configure Groq API
+GROQ_API_KEY = os.getenv("GROG_API_KEY")
+if GROQ_API_KEY:
+    groq_client = Groq(api_key=GROQ_API_KEY)
+    print("✓ Groq API configured successfully")
 else:
-    model = None
-    print("Warning: GEMINI_API_KEY not found in environment variables")
+    groq_client = None
+    print("Warning: GROG_API_KEY not found in environment variables")
 
 
 def get_sales_data_last_60_days(engine) -> Dict:
     """
-    Fetch and aggregate sales data for the last 60 days from database
+    Fetch and aggregate sales data for the last 7 days from database
     
     Args:
         engine: SQLAlchemy database engine
@@ -41,7 +35,7 @@ def get_sales_data_last_60_days(engine) -> Dict:
     import pandas as pd
     
     try:
-        # Query to get last 60 days of sales data
+        # Query to get last 7 days of sales data
         query = """
             SELECT 
                 DATE(transaction_date) as sale_date,
@@ -51,7 +45,7 @@ def get_sales_data_last_60_days(engine) -> Dict:
                 SUM(transaction_qty) as items_sold,
                 AVG(transaction_qty * unit_price) as avg_order_value
             FROM transactions
-            WHERE transaction_date >= DATE_SUB(CURDATE(), INTERVAL 60 DAY)
+            WHERE transaction_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
             GROUP BY DATE(transaction_date), DAYNAME(transaction_date)
             ORDER BY sale_date DESC
         """
@@ -67,9 +61,9 @@ def get_sales_data_last_60_days(engine) -> Dict:
         total_orders = int(df['order_count'].sum())
         avg_orders_per_day = float(df['order_count'].mean())
         
-        # Get top 5 best days and worst 5 days
-        best_days = df.nlargest(5, 'daily_sales')[['sale_date', 'daily_sales', 'day_of_week']].to_dict('records')
-        worst_days = df.nsmallest(5, 'daily_sales')[['sale_date', 'daily_sales', 'day_of_week']].to_dict('records')
+        # Get top 2 best days and worst 2 days
+        best_days = df.nlargest(2, 'daily_sales')[['sale_date', 'daily_sales', 'day_of_week']].to_dict('records')
+        worst_days = df.nsmallest(2, 'daily_sales')[['sale_date', 'daily_sales', 'day_of_week']].to_dict('records')
         
         # Day of week analysis
         day_analysis = df.groupby('day_of_week').agg({
@@ -78,8 +72,8 @@ def get_sales_data_last_60_days(engine) -> Dict:
         }).to_dict('index')
         
         # Calculate trends
-        recent_30_days = df.head(30)['daily_sales'].mean()
-        older_30_days = df.tail(30)['daily_sales'].mean()
+        recent_30_days = df.head(3)['daily_sales'].mean()
+        older_30_days = df.tail(3)['daily_sales'].mean()
         
         trend = "increasing" if recent_30_days > older_30_days * 1.05 else \
                 "decreasing" if recent_30_days < older_30_days * 0.95 else "stable"
@@ -106,16 +100,16 @@ def get_sales_data_last_60_days(engine) -> Dict:
 def get_fallback_sales_data() -> Dict:
     """Returns fallback sales data when database is unavailable"""
     return {
-        'total_sales_60_days': 510000,
+        'total_sales_60_days': 59500,
         'avg_daily_sales': 8500,
-        'total_orders': 3400,
+        'total_orders': 400,
         'avg_orders_per_day': 57,
         'best_days': [],
         'worst_days': [],
         'day_of_week_analysis': {},
         'trend': 'stable',
         'trend_percentage': 2.5,
-        'data_points': 60
+        'data_points': 7
     }
 
 
@@ -130,28 +124,8 @@ def format_sales_for_analysis(sales_data: Dict) -> str:
         Formatted string describing sales patterns
     """
     text = f"""
-Sales Data (Last 60 Days):
-- Total Sales: ${sales_data['total_sales_60_days']:,.2f}
-- Average Daily Sales: ${sales_data['avg_daily_sales']:,.2f}
-- Total Orders: {sales_data['total_orders']}
-- Average Orders per Day: {sales_data['avg_orders_per_day']:.1f}
-- Trend: {sales_data['trend']} ({sales_data['trend_percentage']:.1f}%)
-- Data Points: {sales_data['data_points']} days
-
-Best Performing Days:
+Sales (Last 7 Days): Avg ${sales_data['avg_daily_sales']:,.0f}/day, Trend: {sales_data['trend']} ({sales_data['trend_percentage']:.1f}%)
 """
-    
-    for day in sales_data['best_days'][:3]:
-        text += f"  - {day.get('sale_date', 'N/A')} ({day.get('day_of_week', 'N/A')}): ${day.get('daily_sales', 0):,.2f}\n"
-    
-    text += "\nWorst Performing Days:\n"
-    for day in sales_data['worst_days'][:3]:
-        text += f"  - {day.get('sale_date', 'N/A')} ({day.get('day_of_week', 'N/A')}): ${day.get('daily_sales', 0):,.2f}\n"
-    
-    if sales_data['day_of_week_analysis']:
-        text += "\nDay of Week Performance:\n"
-        for day, stats in list(sales_data['day_of_week_analysis'].items())[:7]:
-            text += f"  - {day}: Avg ${stats['daily_sales']:,.2f}, {stats['order_count']:.0f} orders\n"
     
     return text
 
@@ -162,7 +136,7 @@ def generate_predictive_insights(
     holidays: List[Dict]
 ) -> Dict:
     """
-    Generate AI-powered predictive insights using Gemini
+    Generate AI-powered predictive insights using Groq
     Analyzes patterns between weather, holidays, and sales
     
     Args:
@@ -173,7 +147,7 @@ def generate_predictive_insights(
     Returns:
         Dictionary containing AI insights and predictions
     """
-    if not model:
+    if not groq_client:
         return get_fallback_predictive_insights()
     
     try:
@@ -182,97 +156,58 @@ def generate_predictive_insights(
         weather_text = format_weather_for_analysis(weather_data)
         holidays_text = format_holidays_for_analysis(holidays)
         
-        # Create comprehensive prompt
+        # Create manager-focused prompt
         prompt = f"""
-You are an expert business analytics AI for a coffee shop called DataBrew. Analyze the following data to predict sales patterns, identify opportunities and risks for the next 30 days.
+You are a business advisor for DataBrew Coffee Shop manager. Analyze this data and provide actionable insights:
 
 {sales_text}
-
 {weather_text}
-
 {holidays_text}
 
-Based on this comprehensive data, provide insights in the following categories:
+Provide practical, specific JSON insights. IMPORTANT: Match this exact format:
 
-1. WEATHER IMPACT PREDICTIONS (3-4 insights):
-   - How will upcoming weather patterns affect sales?
-   - Identify specific days with heavy rain, extreme heat, or ideal weather
-   - Suggest inventory adjustments based on weather (e.g., more iced drinks in hot weather)
-
-2. HOLIDAY OPPORTUNITIES (2-3 insights):
-   - Which holidays will boost sales and by how much?
-   - Product recommendations for specific holidays (e.g., Valentine's special drinks)
-   - Staffing recommendations for holiday periods
-
-3. ABNORMALITIES & RISKS (2-3 insights):
-   - Identify days with potential low sales due to weather or other factors
-   - Days requiring special attention or preparation
-   - Risk mitigation strategies
-
-4. ACTIONABLE RECOMMENDATIONS (3-4 insights):
-   - Specific actions to maximize revenue in next 30 days
-   - Inventory management recommendations
-   - Staffing optimization suggestions
-   - Promotional campaign ideas tied to weather/holidays
-
-Format your response as a JSON object with this structure:
 {{
-  "weather_insights": [
-    {{
-      "date": "2024-12-XX",
-      "impact": "positive" | "negative" | "neutral",
-      "prediction": "Specific prediction with numbers",
-      "recommendation": "Actionable recommendation",
-      "confidence": "high" | "medium" | "low"
-    }}
-  ],
-  "holiday_insights": [
-    {{
-      "holiday_name": "Name",
-      "date": "2024-12-XX",
-      "expected_sales_increase": "percentage or amount",
-      "recommendation": "Specific action to take",
-      "product_suggestions": ["product1", "product2"]
-    }}
-  ],
-  "abnormalities": [
-    {{
-      "date": "2024-12-XX",
-      "type": "risk" | "opportunity",
-      "description": "What's unusual or noteworthy",
-      "impact": "Expected impact on sales",
-      "mitigation": "How to handle it"
-    }}
-  ],
-  "actionable_recommendations": [
-    {{
-      "category": "inventory" | "staffing" | "marketing" | "operations",
-      "priority": "high" | "medium" | "low",
-      "recommendation": "Specific action",
-      "expected_outcome": "Expected result",
-      "timeframe": "When to implement"
-    }}
-  ],
-  "summary": {{
-    "overall_outlook": "positive" | "neutral" | "challenging",
-    "total_predicted_impact": "percentage change vs average",
-    "key_dates_to_watch": ["date1", "date2", "date3"],
-    "top_3_priorities": ["priority1", "priority2", "priority3"]
-  }}
+"weather_insights": [
+  {{"date": "YYYY-MM-DD", "impact": "positive", "prediction": "Clear description of weather and expected effect", "recommendation": "Specific action to take", "confidence": "high/medium/low"}}
+],
+"holiday_insights": [
+  {{"holiday_name": "Holiday Name", "date": "YYYY-MM-DD", "expected_sales_increase": "+X%", "recommendation": "Specific promotional action", "product_suggestions": ["Product A", "Product B"]}}
+],
+"abnormalities": [
+  {{"date": "YYYY-MM-DD", "type": "risk", "description": "What might go wrong or opportunity", "impact": "Specific $ or % impact", "mitigation": "How to handle it"}}
+],
+"actionable_recommendations": [
+  {{"category": "inventory/staffing/marketing", "priority": "high", "recommendation": "Clear action item", "expected_outcome": "Result in $ or %", "timeframe": "When to do it"}}
+],
+"summary": {{"overall_outlook": "positive", "total_predicted_impact": "+X%", "key_dates_to_watch": ["YYYY-MM-DD", "YYYY-MM-DD"], "top_3_priorities": ["Priority 1", "Priority 2", "Priority 3"]}}
 }}
 
-Important:
-- Be specific with dates, numbers, and percentages
-- Base predictions on actual historical patterns from sales data
-- Consider weather-sales correlations (rain = less foot traffic, hot days = more iced drinks)
-- Factor in holiday impacts (Valentine's = romantic drinks, heavy rain day = low traffic)
-- Provide actionable, implementable recommendations
-- Return ONLY valid JSON, no markdown or additional text
+Rules:
+- impact MUST be "positive", "negative", or "neutral" (not descriptions)
+- type MUST be "risk" or "opportunity"
+- priority MUST be "high", "medium", or "low"
+- overall_outlook MUST be "positive", "neutral", or "challenging"
+- Include date field in ALL abnormalities
+- Max 3 items per array
 """
 
-        # Generate insights using Gemini
-        response = model.generate_content(prompt)
-        insights_text = response.text.strip()
+        # Generate insights using Groq
+        response = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert business analytics AI. Always respond with valid JSON only."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.5,
+            max_tokens=1500
+        )
+        insights_text = response.choices[0].message.content.strip()
         
         # Extract JSON from response
         json_match = re.search(r'```(?:json)?\s*(\{.*\})\s*```', insights_text, re.DOTALL)
@@ -358,7 +293,7 @@ def get_fallback_predictive_insights() -> Dict:
 
 def get_weather_forecast_data() -> List[Dict]:
     """
-    Get weather forecast for next 30 days
+    Get weather forecast for next 7 days
     Wraps the weather_forcast.py functionality
     
     Returns:
@@ -373,7 +308,7 @@ def get_weather_forecast_data() -> List[Dict]:
     longitude = 90.3943
     
     start_date = datetime.today().date()
-    end_date = start_date + timedelta(days=30)
+    end_date = start_date + timedelta(days=7)
     
     start_str = start_date.strftime("%Y-%m-%d")
     end_str = end_date.strftime("%Y-%m-%d")
@@ -421,7 +356,7 @@ def get_fallback_weather_data() -> List[Dict]:
     current_date = datetime.now().date()
     weather_list = []
     
-    for i in range(30):
+    for i in range(7):
         date = current_date + timedelta(days=i)
         weather_list.append({
             'date': date.strftime('%Y-%m-%d'),
@@ -449,38 +384,17 @@ def format_weather_for_analysis(weather_data: List[Dict]) -> str:
         Formatted string describing weather patterns
     """
     if not weather_data:
-        return "No weather forecast data available."
+        return "No weather data."
     
-    text = f"Weather Forecast (Next 30 Days, {len(weather_data)} days):\n\n"
+    # Simplified format
+    rainy_days = sum(1 for d in weather_data if d['precipitation'] > 5)
+    hot_days = sum(1 for d in weather_data if d['temp_max'] > 35)
     
-    # Identify key weather patterns
-    rainy_days = [d for d in weather_data if d['precipitation'] > 5 or d['precipitation_probability'] > 60]
-    hot_days = [d for d in weather_data if d['temp_max'] > 35]
-    cold_days = [d for d in weather_data if d['temp_max'] < 15]
+    text = f"Weather (7 days): {rainy_days} rainy, {hot_days} hot days\n"
     
-    text += f"Summary:\n"
-    text += f"- Rainy days: {len(rainy_days)}\n"
-    text += f"- Hot days (>35°C): {len(hot_days)}\n"
-    text += f"- Cool days (<15°C): {len(cold_days)}\n\n"
-    
-    # Highlight significant weather events
-    if rainy_days:
-        text += "Significant Rain Expected:\n"
-        for day in rainy_days[:5]:  # Show first 5 rainy days
-            text += f"  - {day['date']}: {day['conditions']}, {day['precipitation']}mm rain, {day['precipitation_probability']}% chance\n"
-        text += "\n"
-    
-    if hot_days:
-        text += "Hot Days Expected:\n"
-        for day in hot_days[:5]:
-            text += f"  - {day['date']}: {day['temp_max']}°C max, {day['conditions']}\n"
-        text += "\n"
-    
-    # Show next 7 days in detail
-    text += "Next 7 Days Detail:\n"
-    for day in weather_data[:7]:
-        text += f"  - {day['date']}: {day['conditions']}, {day['temp_max']}/{day['temp_min']}°C, "
-        text += f"Humidity {day['humidity']}%, Precip {day['precipitation']}mm\n"
+    # Show first 3 days only
+    for day in weather_data[:3]:
+        text += f"{day['date']}: {day['conditions']}, {day['temp_max']}°C, {day['precipitation']}mm\n"
     
     return text
 
