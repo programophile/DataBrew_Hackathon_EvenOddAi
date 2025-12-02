@@ -195,7 +195,7 @@ export function PredictiveInsightsPanel() {
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-2xl font-bold text-[#8b5e3c] mb-2">
-              📊 Predictive Business Intelligence
+               Predictive Business Intelligence
             </h2>
             <p className="text-sm text-[#8b5e3c]/70">
               AI-powered insights based on weather, holidays, and sales trends
@@ -286,7 +286,7 @@ export function PredictiveInsightsPanel() {
           <div className="flex items-center gap-3">
             <Cloud className="w-5 h-5 text-blue-600" />
             <h3 className="text-lg font-semibold text-[#8b5e3c]">
-              🌤️ Weather Impact Analysis
+               Weather Impact Analysis
             </h3>
             <Badge variant="outline" className="bg-blue-50 text-blue-700">
               {insights.weather_insights.length} insights
@@ -352,7 +352,7 @@ export function PredictiveInsightsPanel() {
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-purple-600" />
               <h3 className="text-lg font-semibold text-[#8b5e3c]">
-                🎉 Holiday Opportunities
+                 Holiday Opportunities
               </h3>
               <Badge variant="outline" className="bg-purple-50 text-purple-700">
                 {insights.holiday_insights.length} holidays
@@ -419,7 +419,7 @@ export function PredictiveInsightsPanel() {
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-5 h-5 text-orange-600" />
               <h3 className="text-lg font-semibold text-[#8b5e3c]">
-                ⚠️ Risks & Opportunities
+                 Risks & Opportunities
               </h3>
               <Badge variant="outline" className="bg-orange-50 text-orange-700">
                 {insights.abnormalities.length} alerts
@@ -501,7 +501,7 @@ export function PredictiveInsightsPanel() {
           <div className="flex items-center gap-3">
             <Lightbulb className="w-5 h-5 text-yellow-600" />
             <h3 className="text-lg font-semibold text-[#8b5e3c]">
-              💡 Actionable Recommendations
+               Actionable Recommendations
             </h3>
             <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
               {insights.actionable_recommendations.length} actions

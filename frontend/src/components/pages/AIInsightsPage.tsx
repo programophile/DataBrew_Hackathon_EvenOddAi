@@ -513,8 +513,7 @@ function CurrentInsightsContent({
           <div className="flex items-start justify-between mb-4">
             <div>
               <h3 className="text-[#8b5e3c] flex items-center gap-2">
-                <span className="text-blue-600">📊</span> Source Data Used for
-                AI Analysis
+                Source Data Used for AI Analysis
               </h3>
               <p className="text-sm text-[#8b5e3c]/60">
                 Actual calculations sent to AI - verify the insights are based
