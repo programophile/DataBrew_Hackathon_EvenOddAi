@@ -29,7 +29,17 @@ frontend/*.sublime-project
 # macOS
 frontend/.DS_Store
 
-# Optional: backend ignores (if you have a backend folder)
-# backend/node_modules/
-# backend/.env
-# backend/logs/
+# Backend Python ignores
+backend/.env
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/*.pyc
+backend/.pytest_cache/
+backend/**/.pytest_cache/
+backend/*.db
+backend/**/*.db
+backend/database/*.db
+backend/*.log
+backend/logs/
