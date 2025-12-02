@@ -108,6 +108,8 @@ export function AIInsightsPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [liveInsights, setLiveInsights] = useState(aiInsights);
+  const [sourceData, setSourceData] = useState<any>(null);
+  const [showSourceData, setShowSourceData] = useState(false);
 
   useEffect(() => {
     const fetchForecast = async () => {
@@ -146,26 +148,31 @@ export function AIInsightsPage() {
     try {
       const response = await apiService.generateInsights();
 
-      // Map the generated insights to the format expected by the UI
-      const newInsights = response.insights.map((insight: any, index: number) => {
-        const iconMap: Record<string, any> = {
-          trending_up: TrendingUp,
-          users: Users,
-          clock: Clock,
-          alert: Package,
-        };
+      // Store source data for transparency
+      setSourceData(response.source_data);
 
-        return {
-          id: Date.now() + index,
-          type: insight.type === "alert" ? "inventory" : insight.type,
-          icon: iconMap[insight.type] || TrendingUp,
-          title: getTitleFromType(insight.type),
-          description: insight.text,
-          impact: getImpactFromColor(insight.color),
-          recommendation: insight.text,
-          confidence: 90 + Math.floor(Math.random() * 10),
-        };
-      });
+      // Map the generated insights to the format expected by the UI
+      const newInsights = response.insights.map(
+        (insight: any, index: number) => {
+          const iconMap: Record<string, any> = {
+            trending_up: TrendingUp,
+            users: Users,
+            clock: Clock,
+            alert: Package,
+          };
+
+          return {
+            id: Date.now() + index,
+            type: insight.type === "alert" ? "inventory" : insight.type,
+            icon: iconMap[insight.type] || TrendingUp,
+            title: getTitleFromType(insight.type),
+            description: insight.text,
+            impact: getImpactFromColor(insight.color),
+            recommendation: insight.text,
+            confidence: 90 + Math.floor(Math.random() * 10),
+          };
+        }
+      );
 
       setLiveInsights(newInsights);
 
@@ -251,6 +258,283 @@ export function AIInsightsPage() {
           </div>
         </div>
       </Card>
+
+      {/* Source Data Display - Shows actual calculations sent to AI */}
+      {sourceData && (
+        <Card className="p-6 bg-blue-50/50 backdrop-blur-sm border-blue-200 rounded-2xl">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-[#8b5e3c] flex items-center gap-2">
+                <span className="text-blue-600">📊</span> Source Data Used for
+                AI Analysis
+              </h3>
+              <p className="text-sm text-[#8b5e3c]/60">
+                Actual calculations sent to AI - verify the insights are based
+                on real data
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowSourceData(!showSourceData)}
+              className="border-blue-300 text-blue-700 hover:bg-blue-100"
+            >
+              {showSourceData ? "Hide" : "Show"} Data
+            </Button>
+          </div>
+
+          {showSourceData && (
+            <div className="space-y-6">
+              {/* Key Metrics Grid */}
+              <div>
+                <h4 className="text-sm font-semibold text-[#8b5e3c] mb-3">
+                  📈 Key Performance Metrics
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="p-3 bg-white/80 rounded-lg border border-blue-200">
+                    <p className="text-xs text-[#8b5e3c]/60 mb-1">
+                      Total Weekly Sales
+                    </p>
+                    <p className="text-lg font-semibold text-[#8b5e3c]">
+                      ${sourceData.total_weekly_sales?.toFixed(2) || "0.00"}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/80 rounded-lg border border-blue-200">
+                    <p className="text-xs text-[#8b5e3c]/60 mb-1">
+                      Weekly Orders
+                    </p>
+                    <p className="text-lg font-semibold text-[#8b5e3c]">
+                      {sourceData.total_weekly_orders || 0}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/80 rounded-lg border border-blue-200">
+                    <p className="text-xs text-[#8b5e3c]/60 mb-1">
+                      Items Sold (7d)
+                    </p>
+                    <p className="text-lg font-semibold text-[#8b5e3c]">
+                      {sourceData.total_items_sold || 0}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/80 rounded-lg border border-blue-200">
+                    <p className="text-xs text-[#8b5e3c]/60 mb-1">
+                      Avg Daily Sales
+                    </p>
+                    <p className="text-lg font-semibold text-[#8b5e3c]">
+                      ${sourceData.avg_daily_sales?.toFixed(2) || "0.00"}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/80 rounded-lg border border-blue-200">
+                    <p className="text-xs text-[#8b5e3c]/60 mb-1">
+                      Recent Daily Sales
+                    </p>
+                    <p className="text-lg font-semibold text-[#8b5e3c]">
+                      ${sourceData.recent_daily_sales?.toFixed(2) || "0.00"}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/80 rounded-lg border border-blue-200">
+                    <p className="text-xs text-[#8b5e3c]/60 mb-1">WoW Change</p>
+                    <p
+                      className={`text-lg font-semibold ${
+                        sourceData.wow_change >= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {sourceData.wow_change >= 0 ? "+" : ""}
+                      {sourceData.wow_change?.toFixed(1) || "0.0"}%
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/80 rounded-lg border border-blue-200">
+                    <p className="text-xs text-[#8b5e3c]/60 mb-1">Trend</p>
+                    <p className="text-lg font-semibold text-[#8b5e3c] capitalize">
+                      {sourceData.trend || "steady"}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/80 rounded-lg border border-blue-200">
+                    <p className="text-xs text-[#8b5e3c]/60 mb-1">
+                      Avg Order Value
+                    </p>
+                    <p className="text-lg font-semibold text-[#8b5e3c]">
+                      ${sourceData.avg_order_value?.toFixed(2) || "0.00"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top Products Breakdown */}
+              {sourceData.top_5_products &&
+                sourceData.top_5_products.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[#8b5e3c] mb-3">
+                      🏆 Top 5 Best Selling Products
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {sourceData.top_5_products.map(
+                        (product: any, index: number) => (
+                          <div
+                            key={index}
+                            className="p-3 bg-white/80 rounded-lg border border-blue-200"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <p className="text-sm font-semibold text-[#8b5e3c]">
+                                {index + 1}. {product.product_detail}
+                              </p>
+                              <Badge variant="outline" className="text-xs">
+                                {product.total_qty} sold
+                              </Badge>
+                            </div>
+                            <p className="text-lg font-bold text-green-600">
+                              ${product.total_revenue?.toFixed(2)}
+                            </p>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Daily Sales Trend */}
+              {sourceData.daily_sales_last_7_days &&
+                sourceData.daily_sales_last_7_days.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[#8b5e3c] mb-3">
+                      📅 Daily Sales (Last 7 Days)
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                      {sourceData.daily_sales_last_7_days.map(
+                        (day: any, index: number) => (
+                          <div
+                            key={index}
+                            className="p-3 bg-white/80 rounded-lg border border-blue-200"
+                          >
+                            <p className="text-xs text-[#8b5e3c]/60 mb-1">
+                              {new Date(day.date).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </p>
+                            <p className="text-sm font-bold text-[#8b5e3c]">
+                              ${day.daily_sales?.toFixed(0)}
+                            </p>
+                            <p className="text-xs text-[#8b5e3c]/60 mt-1">
+                              {day.order_count} orders
+                            </p>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Peak Hours Analysis */}
+              {sourceData.peak_hours_details &&
+                sourceData.peak_hours_details.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[#8b5e3c] mb-3">
+                      ⏰ Peak Hours Analysis
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {sourceData.peak_hours_details.map(
+                        (hour: any, index: number) => (
+                          <div
+                            key={index}
+                            className="p-4 bg-white/80 rounded-lg border border-blue-200"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-lg font-bold text-[#8b5e3c]">
+                                {hour.hour}:00
+                              </p>
+                              <Badge
+                                variant="outline"
+                                className="bg-orange-100 text-orange-700"
+                              >
+                                Peak #{index + 1}
+                              </Badge>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm text-[#8b5e3c]/80">
+                                <span className="font-semibold">
+                                  {hour.customer_count}
+                                </span>{" "}
+                                customers
+                              </p>
+                              <p className="text-sm text-green-600 font-semibold">
+                                ${hour.hourly_sales?.toFixed(2)} sales
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Inventory Alerts */}
+              {sourceData.inventory_alerts &&
+                sourceData.inventory_alerts.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-[#8b5e3c] mb-3">
+                      ⚠️ Inventory Alerts (Low Stock)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {sourceData.inventory_alerts.map(
+                        (item: any, index: number) => (
+                          <div
+                            key={index}
+                            className="p-3 bg-red-50 rounded-lg border border-red-200"
+                          >
+                            <p className="text-sm font-semibold text-red-800 mb-1">
+                              {item.item_name}
+                            </p>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-red-700">
+                                Stock: {item.stock}
+                              </span>
+                              <span className="text-red-600">
+                                Reorder: {item.reorder_level}
+                              </span>
+                            </div>
+                            <div className="mt-2 w-full bg-red-200 rounded-full h-2">
+                              <div
+                                className="bg-red-600 h-2 rounded-full"
+                                style={{
+                                  width: `${Math.min(
+                                    (item.stock / item.reorder_level) * 100,
+                                    100
+                                  )}%`,
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              {/* Best Seller Highlight */}
+              {sourceData.best_selling_product && (
+                <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border-2 border-yellow-300">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">🏅</span>
+                    <div>
+                      <p className="text-xs text-[#8b5e3c]/60 mb-1">
+                        Best Selling Product
+                      </p>
+                      <p className="text-xl font-bold text-[#8b5e3c]">
+                        {sourceData.best_selling_product}
+                      </p>
+                      <p className="text-sm text-[#8b5e3c]/80">
+                        {sourceData.best_selling_qty} units sold
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* AI Insights Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

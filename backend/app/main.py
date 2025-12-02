@@ -213,7 +213,17 @@ def fetch_sales_data_for_insights():
         'peak_hour_customers': int(hourly_df['customer_count'].max()) if not hourly_df.empty else 0,
         'total_customers_today': int(trends_df.head(1)['order_count'].iloc[0]) if not trends_df.empty else 0,
         'avg_order_value': float(current_week_sales / trends_df.head(7)['order_count'].sum()) if not trends_df.empty and trends_df.head(7)['order_count'].sum() > 0 else 0,
-        'low_stock_items': inventory_df['item_name'].tolist() if not inventory_df.empty else []
+        'low_stock_items': inventory_df['item_name'].tolist() if not inventory_df.empty else [],
+        # Additional business metrics
+        'total_weekly_sales': float(current_week_sales) if not trends_df.empty else 0,
+        'total_weekly_orders': int(trends_df.head(7)['order_count'].sum()) if not trends_df.empty else 0,
+        'total_items_sold': int(trends_df.head(7)['items_sold'].sum()) if not trends_df.empty else 0,
+        'best_selling_product': products_df['product_detail'].iloc[0] if not products_df.empty else None,
+        'best_selling_qty': int(products_df['total_qty'].iloc[0]) if not products_df.empty else 0,
+        'top_5_products': products_df[['product_detail', 'total_revenue', 'total_qty']].to_dict('records') if not products_df.empty else [],
+        'daily_sales_last_7_days': trends_df.head(7)[['date', 'daily_sales', 'order_count']].to_dict('records') if not trends_df.empty else [],
+        'peak_hours_details': hourly_df[['hour', 'customer_count', 'hourly_sales']].to_dict('records') if not hourly_df.empty else [],
+        'inventory_alerts': inventory_df[['item_name', 'stock', 'reorder_level']].to_dict('records') if not inventory_df.empty else []
     }
 
     return sales_summary
@@ -223,11 +233,15 @@ def fetch_sales_data_for_insights():
 def get_ai_insights():
     """
     Returns AI-generated insights using Gemini AI based on recent sales data from SQL queries
+    Also returns the source data used to generate insights for transparency
     """
     try:
         sales_summary = fetch_sales_data_for_insights()
-        insights = generate_ai_insights(sales_summary)
-        return {"insights": insights}
+        result = generate_ai_insights(sales_summary)
+        return {
+            "insights": result["insights"],
+            "source_data": result["source_data"]
+        }
 
     except Exception as e:
         print(f"Error in ai-insights endpoint: {str(e)}")
@@ -263,12 +277,13 @@ def generate_new_insights():
         print(f"Sales summary prepared: {sales_summary}")
 
         # Generate fresh AI insights using Gemini with SQL-derived data
-        insights = generate_ai_insights(sales_summary)
+        result = generate_ai_insights(sales_summary)
 
-        print(f"Generated {len(insights)} insights")
+        print(f"Generated {len(result['insights'])} insights")
 
         return {
-            "insights": insights,
+            "insights": result["insights"],
+            "source_data": result["source_data"],
             "generated_at": datetime.now().isoformat(),
             "data_summary": {
                 "avg_daily_sales": sales_summary['avg_daily_sales'],

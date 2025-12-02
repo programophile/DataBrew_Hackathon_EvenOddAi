@@ -17,7 +17,7 @@ else:
     print("Warning: GEMINI_API_KEY not found in environment variables")
 
 
-def generate_ai_insights(sales_data: dict) -> list:
+def generate_ai_insights(sales_data: dict) -> dict:
     """
     Generate AI insights using Gemini API based on sales data
 
@@ -25,7 +25,7 @@ def generate_ai_insights(sales_data: dict) -> list:
         sales_data: Dictionary containing sales information, trends, and patterns
 
     Returns:
-        List of insight dictionaries with type, text, and color
+        Dictionary containing insights list and source_data for transparency
     """
     if not model:
         return get_fallback_insights()
@@ -99,14 +99,20 @@ Example:
                 valid_insights.append(insight)
 
         if len(valid_insights) >= 2:
-            return valid_insights[:4]  # Return max 4 insights
+            return {
+                "insights": valid_insights[:4],  # Return max 4 insights
+                "source_data": sales_data
+            }
         else:
             raise ValueError("Generated insights did not meet minimum requirements")
 
     except Exception as e:
         print(f"Error generating Gemini insights: {str(e)}")
         print(f"Response: {insights_text if 'insights_text' in locals() else 'No response'}")
-        return get_fallback_insights()
+        return {
+            "insights": get_fallback_insights(),
+            "source_data": sales_data
+        }
 
 
 def get_fallback_insights() -> list:
