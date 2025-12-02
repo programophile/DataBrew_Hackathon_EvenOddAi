@@ -1,0 +1,35 @@
+# Node modules
+frontend/node_modules/
+
+# Build output
+frontend/build/
+
+# Environment variables
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# Coverage reports
+frontend/coverage/
+
+# Editor directories and files
+frontend/.vscode/
+frontend/.idea/
+frontend/*.sublime-workspace
+frontend/*.sublime-project
+
+# macOS
+frontend/.DS_Store
+
+# Optional: backend ignores (if you have a backend folder)
+# backend/node_modules/
+# backend/.env
+# backend/logs/
