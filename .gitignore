@@ -29,7 +29,34 @@ frontend/*.sublime-project
 # macOS
 frontend/.DS_Store
 
-# Optional: backend ignores (if you have a backend folder)
-# backend/node_modules/
-# backend/.env
-# backend/logs/
+# Python backend
+backend/venv/
+backend/.env
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/**/*.pyc
+backend/.pytest_cache/
+backend/database/*.db
+backend/database/*.sqlite
+backend/database/*.sqlite3
+
+# Claude Code
+.claude/
+
+# Windows
+nul
+Thumbs.db
+esd.wmv
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# macOS
+.DS_Store

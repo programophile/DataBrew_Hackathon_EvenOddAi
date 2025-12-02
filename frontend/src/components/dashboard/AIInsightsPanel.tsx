@@ -1,26 +1,61 @@
+import { useEffect, useState } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Sparkles, TrendingUp, Users, Clock } from "lucide-react";
+import { apiService } from "../../services/api";
 
-const insights = [
-  {
-    icon: TrendingUp,
-    text: "Sales for Iced Latte increased by 12% this week.",
-    color: "#22c55e",
-  },
-  {
-    icon: Users,
-    text: "You may need 2 extra baristas between 5–8 PM tomorrow.",
-    color: "#f59e0b",
-  },
-  {
-    icon: Clock,
-    text: "Predicted customer peak: 6:00 PM.",
-    color: "#8b5e3c",
-  },
-];
+const iconMap: Record<string, any> = {
+  trending_up: TrendingUp,
+  users: Users,
+  clock: Clock,
+};
 
 export function AIInsightsPanel() {
+  const [insights, setInsights] = useState<Array<{
+    type: string;
+    text: string;
+    color: string;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        const data = await apiService.getAIInsights();
+        setInsights(data.insights);
+      } catch (error) {
+        console.error("Failed to fetch AI insights:", error);
+        // Fallback to default insights
+        setInsights([
+          {
+            type: "trending_up",
+            text: "Loading insights...",
+            color: "#22c55e",
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInsights();
+  }, []);
+
+  const handleGenerateReport = async () => {
+    setGenerating(true);
+    try {
+      const response = await apiService.generateInsights();
+      setInsights(response.insights);
+      console.log("Generated new insights:", response);
+    } catch (error) {
+      console.error("Failed to generate insights:", error);
+      alert("Failed to generate new insights. Please try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <Card className="p-6 bg-gradient-to-br from-[#8b5e3c]/5 to-[#d8c3a5]/10 backdrop-blur-sm border-[#8b5e3c]/20 rounded-2xl relative overflow-hidden">
       {/* Glow effect */}
@@ -35,22 +70,33 @@ export function AIInsightsPanel() {
         </div>
 
         <div className="space-y-3 mb-6">
-          {insights.map((insight, index) => (
-            <div
-              key={index}
-              className="flex items-start gap-3 p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-[#d8c3a5]/30 hover:shadow-md transition-all"
-            >
-              <div className="p-2 rounded-lg" style={{ backgroundColor: `${insight.color}15` }}>
-                <insight.icon className="w-4 h-4" style={{ color: insight.color }} />
-              </div>
-              <p className="text-sm text-[#8b5e3c]/90 flex-1">{insight.text}</p>
-            </div>
-          ))}
+          {loading ? (
+            <div className="text-center text-[#8b5e3c]/60">Loading insights...</div>
+          ) : (
+            insights.map((insight, index) => {
+              const Icon = iconMap[insight.type] || TrendingUp;
+              return (
+                <div
+                  key={index}
+                  className="flex items-start gap-3 p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-[#d8c3a5]/30 hover:shadow-md transition-all"
+                >
+                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${insight.color}15` }}>
+                    <Icon className="w-4 h-4" style={{ color: insight.color }} />
+                  </div>
+                  <p className="text-sm text-[#8b5e3c]/90 flex-1">{insight.text}</p>
+                </div>
+              );
+            })
+          )}
         </div>
 
-        <Button className="w-full bg-gradient-to-r from-[#8b5e3c] to-[#b08968] hover:from-[#b08968] hover:to-[#8b5e3c] text-white shadow-lg shadow-[#8b5e3c]/30">
+        <Button
+          className="w-full bg-gradient-to-r from-[#8b5e3c] to-[#b08968] hover:from-[#b08968] hover:to-[#8b5e3c] text-white shadow-lg shadow-[#8b5e3c]/30"
+          onClick={handleGenerateReport}
+          disabled={generating}
+        >
           <Sparkles className="w-4 h-4 mr-2" />
-          Generate AI Report
+          {generating ? "Generating..." : "Generate AI Report"}
         </Button>
       </div>
     </Card>
