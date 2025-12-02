@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "./components/dashboard/Sidebar";
 import { Header } from "./components/dashboard/Header";
 import { DashboardPage } from "./components/pages/DashboardPage";
@@ -12,8 +12,17 @@ import { SignupPage } from "./components/auth/SignupPage";
 
 function App() {
   const [activePage, setActivePage] = useState("dashboard");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    // Initialize from localStorage
+    const saved = localStorage.getItem("isAuthenticated");
+    return saved === "true";
+  });
   const [authView, setAuthView] = useState<"login" | "signup">("login");
+
+  // Persist authentication state
+  useEffect(() => {
+    localStorage.setItem("isAuthenticated", String(isAuthenticated));
+  }, [isAuthenticated]);
 
   const handleLogin = () => {
     setIsAuthenticated(true);
@@ -25,6 +34,7 @@ function App() {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    localStorage.removeItem("isAuthenticated");
     setAuthView("login");
   };
 
@@ -77,9 +87,7 @@ function App() {
         <Header onLogout={handleLogout} />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6">
-          {renderPage()}
-        </main>
+        <main className="flex-1 overflow-y-auto p-6">{renderPage()}</main>
       </div>
     </div>
   );

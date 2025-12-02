@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import {
   Sparkles,
   TrendingUp,
@@ -12,6 +13,8 @@ import {
   Clock,
   Lightbulb,
   Download,
+  CloudRain,
+  Calendar,
 } from "lucide-react";
 import {
   LineChart,
@@ -25,6 +28,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { apiService } from "../../services/api";
+import { PredictiveInsightsPanel } from "../dashboard/PredictiveInsightsPanel";
 
 const aiInsights = [
   {
@@ -247,17 +251,216 @@ export function AIInsightsPage() {
               <Download className="w-4 h-4 mr-2" />
               Export Report
             </Button>
-            <Button
-              className="bg-gradient-to-r from-[#8b5e3c] to-[#b08968] hover:from-[#b08968] hover:to-[#8b5e3c] text-white shadow-lg shadow-[#8b5e3c]/30"
-              onClick={handleGenerateInsights}
-              disabled={generating}
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              {generating ? "Generating..." : "Generate New Insights"}
-            </Button>
           </div>
         </div>
       </Card>
+
+      {/* Tabs for different insights */}
+      <Tabs defaultValue="predictive" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 bg-[#d8c3a5]/20">
+          <TabsTrigger
+            value="predictive"
+            className="data-[state=active]:bg-[#8b5e3c] data-[state=active]:text-white"
+          >
+            <CloudRain className="w-4 h-4 mr-2" />
+            Predictive Insights
+          </TabsTrigger>
+          <TabsTrigger
+            value="current"
+            className="data-[state=active]:bg-[#8b5e3c] data-[state=active]:text-white"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Current Insights
+          </TabsTrigger>
+          <TabsTrigger
+            value="forecast"
+            className="data-[state=active]:bg-[#8b5e3c] data-[state=active]:text-white"
+          >
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Sales Forecast
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Predictive Insights Tab */}
+        <TabsContent value="predictive" className="mt-6">
+          <PredictiveInsightsPanel />
+        </TabsContent>
+
+        {/* Current Insights Tab */}
+        <TabsContent value="current" className="mt-6">
+          <CurrentInsightsContent
+            liveInsights={liveInsights}
+            generating={generating}
+            handleGenerateInsights={handleGenerateInsights}
+            sourceData={sourceData}
+            showSourceData={showSourceData}
+            setShowSourceData={setShowSourceData}
+            getImpactColor={getImpactColor}
+            loading={loading}
+            predictionData={predictionData}
+          />
+        </TabsContent>
+
+        {/* Forecast Tab */}
+        <TabsContent value="forecast" className="mt-6">
+          <ForecastContent loading={loading} predictionData={predictionData} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// Separate component for Forecast content
+function ForecastContent({ loading, predictionData }: any) {
+  return (
+    <div className="space-y-6">
+      {/* Prediction Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6 bg-white/60 backdrop-blur-sm border-[#d8c3a5]/30 rounded-2xl">
+          <div className="mb-6">
+            <h3 className="text-[#8b5e3c]">Sales Forecast (Next 7 Days)</h3>
+            <p className="text-sm text-[#8b5e3c]/60">
+              AI-predicted sales based on historical data
+            </p>
+          </div>
+          {loading ? (
+            <div className="text-center text-[#8b5e3c]/60 py-20">
+              Loading forecast...
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={predictionData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#d8c3a5"
+                    opacity={0.3}
+                  />
+                  <XAxis
+                    dataKey="day"
+                    stroke="#8b5e3c"
+                    opacity={0.6}
+                    fontSize={12}
+                  />
+                  <YAxis stroke="#8b5e3c" opacity={0.6} fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fffaf3",
+                      border: "1px solid #d8c3a5",
+                      borderRadius: "12px",
+                      color: "#8b5e3c",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="predicted"
+                    stroke="#8b5e3c"
+                    strokeWidth={3}
+                    name="Predicted Sales"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="actual"
+                    stroke="#22c55e"
+                    strokeWidth={2}
+                    name="Actual Sales"
+                    strokeDasharray="5 5"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  ✨ AI-powered forecast using SARIMA model - Plan inventory and
+                  staffing accordingly!
+                </p>
+              </div>
+            </>
+          )}
+        </Card>
+
+        <Card className="p-6 bg-white/60 backdrop-blur-sm border-[#d8c3a5]/30 rounded-2xl">
+          <div className="mb-6">
+            <h3 className="text-[#8b5e3c]">Customer Visit Patterns</h3>
+            <p className="text-sm text-[#8b5e3c]/60">
+              Peak hours identification
+            </p>
+          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart
+              data={[
+                { hour: "8AM", visits: 45 },
+                { hour: "9AM", visits: 78 },
+                { hour: "10AM", visits: 92 },
+                { hour: "11AM", visits: 105 },
+                { hour: "12PM", visits: 125 },
+                { hour: "1PM", visits: 115 },
+                { hour: "2PM", visits: 98 },
+                { hour: "3PM", visits: 135 },
+                { hour: "4PM", visits: 142 },
+                { hour: "5PM", visits: 168 },
+                { hour: "6PM", visits: 195 },
+                { hour: "7PM", visits: 158 },
+              ]}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#d8c3a5"
+                opacity={0.3}
+              />
+              <XAxis
+                dataKey="hour"
+                stroke="#8b5e3c"
+                opacity={0.6}
+                fontSize={12}
+              />
+              <YAxis stroke="#8b5e3c" opacity={0.6} fontSize={12} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#fffaf3",
+                  border: "1px solid #d8c3a5",
+                  borderRadius: "12px",
+                  color: "#8b5e3c",
+                }}
+              />
+              <Bar dataKey="visits" fill="#8b5e3c" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <p className="text-sm text-orange-800">
+              🔔 Peak hours: 5PM-7PM. Consider adding 2-3 staff members during
+              this time.
+            </p>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// Separate component for Current Insights content
+function CurrentInsightsContent({
+  liveInsights,
+  generating,
+  handleGenerateInsights,
+  sourceData,
+  showSourceData,
+  setShowSourceData,
+  getImpactColor,
+  loading,
+  predictionData,
+}: any) {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button
+          className="bg-gradient-to-r from-[#8b5e3c] to-[#b08968] hover:from-[#b08968] hover:to-[#8b5e3c] text-white shadow-lg shadow-[#8b5e3c]/30"
+          onClick={handleGenerateInsights}
+          disabled={generating}
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          {generating ? "Generating..." : "Generate New Insights"}
+        </Button>
+      </div>
 
       {/* Source Data Display - Shows actual calculations sent to AI */}
       {sourceData && (

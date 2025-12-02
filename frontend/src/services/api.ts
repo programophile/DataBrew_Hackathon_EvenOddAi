@@ -1,5 +1,5 @@
 // API Configuration and Service
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 // Generic API fetch function with error handling
 async function apiRequest<T>(endpoint: string): Promise<T> {

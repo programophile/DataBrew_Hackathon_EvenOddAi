@@ -3,11 +3,21 @@ import os
 from dotenv import load_dotenv
 import json
 import re
+from groq import Groq
 
 # Load environment variables
 load_dotenv()
 
-# Configure Gemini API
+# Configure Groq API (Primary)
+GROQ_API_KEY = os.getenv("GROG_API_KEY")
+if GROQ_API_KEY:
+    groq_client = Groq(api_key=GROQ_API_KEY)
+    print("✓ Groq API configured for insights generation")
+else:
+    groq_client = None
+    print("Warning: GROG_API_KEY not found in environment variables")
+
+# Configure Gemini API (Fallback)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -19,7 +29,7 @@ else:
 
 def generate_ai_insights(sales_data: dict) -> dict:
     """
-    Generate AI insights using Gemini API based on sales data
+    Generate AI insights using Groq API (primary) or Gemini API (fallback) based on sales data
 
     Args:
         sales_data: Dictionary containing sales information, trends, and patterns
@@ -27,8 +37,16 @@ def generate_ai_insights(sales_data: dict) -> dict:
     Returns:
         Dictionary containing insights list and source_data for transparency
     """
+    # Try Groq first
+    if groq_client:
+        try:
+            return generate_insights_with_groq(sales_data)
+        except Exception as e:
+            print(f"Groq API failed: {e}, falling back to Gemini...")
+    
+    # Fallback to Gemini
     if not model:
-        return get_fallback_insights()
+        return {"insights": get_fallback_insights(), "source_data": sales_data}
 
     try:
         # Prepare the prompt with sales data context
@@ -113,6 +131,86 @@ Example:
             "insights": get_fallback_insights(),
             "source_data": sales_data
         }
+
+
+def generate_insights_with_groq(sales_data: dict) -> dict:
+    """
+    Generate AI insights using Groq API (Llama 3.3 70B)
+    
+    Args:
+        sales_data: Dictionary containing sales information, trends, and patterns
+    
+    Returns:
+        Dictionary containing insights list and source_data
+    """
+    try:
+        # Prepare the prompt with sales data context
+        low_stock_text = ", ".join(sales_data.get('low_stock_items', [])[:3]) if sales_data.get('low_stock_items') else "None"
+        peak_hours_text = ", ".join(sales_data.get('peak_hours', ['Unknown'])[:3])
+        top_products_text = ", ".join(sales_data.get('top_products', ['Unknown'])[:3])
+
+        prompt = f"""You are an AI analytics assistant for DataBrew coffee shop. Analyze the sales data and provide 3-4 actionable insights.
+
+Sales Data:
+- Trend: {sales_data.get('trend', 'steady')}
+- Week-over-week: {sales_data.get('wow_change', 0):.1f}%
+- Top products: {top_products_text}
+- Peak hours: {peak_hours_text}
+- Avg daily sales: ${sales_data.get('avg_daily_sales', 0):.2f}
+- Recent daily sales: ${sales_data.get('recent_daily_sales', 0):.2f}
+- Low stock: {low_stock_text}
+
+Return ONLY a JSON array with 3-4 insights. Each insight must have:
+- "type": "trending_up" | "users" | "clock" | "alert"
+- "text": Brief actionable insight (max 100 chars)
+- "color": "#22c55e" (positive) | "#f59e0b" (warning) | "#ef4444" (urgent) | "#8b5e3c" (neutral)
+
+Use specific numbers from the data. Focus on actionable recommendations. No markdown, just JSON array."""
+
+        # Call Groq API
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a business analytics AI that returns only valid JSON arrays. No explanations, no markdown, just JSON."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            model="llama-3.3-70b-versatile",
+            temperature=0.5,
+            max_tokens=1000,
+        )
+
+        response_text = chat_completion.choices[0].message.content.strip()
+        
+        # Extract JSON from response
+        json_match = re.search(r'```(?:json)?\s*(\[.*?\])\s*```', response_text, re.DOTALL)
+        if json_match:
+            response_text = json_match.group(1)
+        
+        # Parse JSON
+        insights = json.loads(response_text)
+        
+        # Validate insights
+        valid_insights = []
+        for insight in insights:
+            if isinstance(insight, dict) and all(k in insight for k in ['type', 'text', 'color']):
+                valid_insights.append(insight)
+        
+        if len(valid_insights) >= 2:
+            return {
+                "insights": valid_insights[:4],
+                "source_data": sales_data
+            }
+        else:
+            raise ValueError("Generated insights did not meet minimum requirements")
+            
+    except Exception as e:
+        print(f"Error generating Groq insights: {str(e)}")
+        raise  # Re-raise to trigger fallback to Gemini
 
 
 def get_fallback_insights() -> list:

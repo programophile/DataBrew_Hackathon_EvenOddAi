@@ -7,6 +7,12 @@ from sqlalchemy import create_engine
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from .gemini_service import generate_ai_insights, prepare_sales_summary
+from .predictive_analytics import (
+    get_next_30_days_holidays,
+    get_weather_forecast_data,
+    get_sales_data_last_60_days,
+    generate_predictive_insights
+)
 
 app = FastAPI(title="Coffee Sales Analytics API")
 
@@ -54,12 +60,17 @@ def root():
         "endpoints": {
             "/forecast": "GET - Returns sales forecast for next N days",
             "/ai-insights": "GET - Returns AI-generated insights",
+            "/predictive-insights": "GET - Returns comprehensive predictive insights (weather + holidays + sales)",
+            "/holidays": "GET - Returns upcoming holidays for next 30 days",
+            "/weather-forecast": "GET - Returns weather forecast for next 30 days",
             "/sales-data": "GET - Returns sales trend data",
             "/dashboard-metrics": "GET - Returns dashboard key metrics",
             "/best-selling": "GET - Returns best-selling product",
             "/inventory-predictions": "GET - Returns inventory demand predictions",
             "/customer-feedback": "GET - Returns recent customer feedback",
             "/barista-schedule": "GET - Returns barista schedule",
+            "/sales-analytics": "GET - Returns aggregated sales analytics",
+            "/cash-flow": "GET - Returns cash flow data (income vs expenses)",
             "/docs": "API documentation"
         }
     }
@@ -643,6 +654,113 @@ def get_customer_feedback():
     ]
 
     return {"feedback": feedback}
+
+
+@app.get("/predictive-insights")
+def get_predictive_insights():
+    """
+    Returns comprehensive AI-powered predictive insights combining:
+    - Next 30 days holidays
+    - Next 30 days weather forecast
+    - Last 60 days sales data
+    
+    Analyzes patterns to predict abnormalities, opportunities, and risks
+    """
+    if engine is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    try:
+        print("Fetching predictive insights...")
+        
+        # 1. Get holidays for next 30 days
+        print("  - Fetching holidays...")
+        holidays = get_next_30_days_holidays()
+        print(f"    Found {len(holidays)} holidays")
+        
+        # 2. Get weather forecast for next 30 days
+        print("  - Fetching weather forecast...")
+        weather_data = get_weather_forecast_data()
+        print(f"    Got {len(weather_data)} days of weather forecast")
+        
+        # 3. Get sales data for last 60 days
+        print("  - Fetching sales data...")
+        sales_data = get_sales_data_last_60_days(engine)
+        print(f"    Analyzed {sales_data['data_points']} days of sales")
+        
+        # 4. Generate AI insights using Gemini
+        print("  - Generating AI insights with Gemini...")
+        insights = generate_predictive_insights(sales_data, weather_data, holidays)
+        
+        print("  ✓ Predictive insights generated successfully")
+        
+        return {
+            "status": "success",
+            "insights": insights,
+            "data_summary": {
+                "holidays_count": len(holidays),
+                "weather_days": len(weather_data),
+                "sales_days_analyzed": sales_data['data_points'],
+                "avg_daily_sales": sales_data['avg_daily_sales'],
+                "sales_trend": sales_data['trend']
+            },
+            "generated_at": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        print(f"Error in predictive-insights endpoint: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error generating predictive insights: {str(e)}")
+
+
+@app.get("/holidays")
+def get_holidays(days: int = 30):
+    """
+    Returns upcoming holidays for the next N days
+    """
+    try:
+        holidays = get_next_30_days_holidays()
+        
+        # Filter by requested days if different from 30
+        if days != 30:
+            from datetime import datetime, timedelta
+            end_date = datetime.now() + timedelta(days=days)
+            holidays = [
+                h for h in holidays 
+                if datetime.strptime(h['date'], '%Y-%m-%d') <= end_date
+            ]
+        
+        return {
+            "holidays": holidays,
+            "count": len(holidays),
+            "period_days": days
+        }
+        
+    except Exception as e:
+        print(f"Error in holidays endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching holidays: {str(e)}")
+
+
+@app.get("/weather-forecast")
+def get_weather_forecast(days: int = 30):
+    """
+    Returns weather forecast for the next N days
+    """
+    try:
+        weather_data = get_weather_forecast_data()
+        
+        # Limit to requested days
+        weather_data = weather_data[:days]
+        
+        return {
+            "forecast": weather_data,
+            "count": len(weather_data),
+            "period_days": days
+        }
+        
+    except Exception as e:
+        print(f"Error in weather-forecast endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching weather forecast: {str(e)}")
 
 
 @app.get("/sales-analytics")
