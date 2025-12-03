@@ -19,6 +19,7 @@ function App() {
     return !!token;
   });
   const [authView, setAuthView] = useState<"login" | "signup">("login");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogin = (token: string, user: any) => {
     // Store token and user info
@@ -104,17 +105,25 @@ function App() {
       {/* Sidebar */}
       <Sidebar
         activePage={activePage}
-        onPageChange={setActivePage}
+        onPageChange={(pageId) => {
+          setActivePage(pageId);
+          setIsSidebarOpen(false); // Close sidebar on mobile after selection
+        }}
         onLogout={handleLogout}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <Header onLogout={handleLogout} />
+        <Header 
+          onLogout={handleLogout}
+          onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6">{renderPage()}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">{renderPage()}</main>
       </div>
     </div>
   );

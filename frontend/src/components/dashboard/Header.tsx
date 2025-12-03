@@ -1,17 +1,27 @@
-import { Search, Bell, MessageSquare, ChevronDown, LogOut } from "lucide-react";
+import { Search, Bell, MessageSquare, ChevronDown, LogOut, Menu } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
+import { Button } from "../ui/button";
 import { useState } from "react";
 
-export function Header({ onLogout }: { onLogout?: () => void }) {
+export function Header({ onLogout, onMenuClick }: { onLogout?: () => void; onMenuClick?: () => void }) {
   const [showDropdown, setShowDropdown] = useState(false);
 
   return (
-    <header className="h-16 bg-white/60 backdrop-blur-md border-b border-[#d8c3a5]/30 px-6 flex items-center justify-between sticky top-0 z-10">
-      <div>
-        <h2 className="text-[#8b5e3c]">AI Overview</h2>
-        <p className="text-xs text-[#8b5e3c]/60">
+    <header className="h-16 bg-white/60 backdrop-blur-md border-b border-[#d8c3a5]/30 px-4 md:px-6 flex items-center justify-between sticky top-0 z-10">
+      {/* Mobile Menu Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="lg:hidden text-[#8b5e3c]"
+        onClick={onMenuClick}
+      >
+        <Menu className="w-6 h-6" />
+      </Button>
+      <div className="flex-1">
+        <h2 className="text-base md:text-lg text-[#8b5e3c]">AI Overview</h2>
+        <p className="text-xs text-[#8b5e3c]/60 hidden sm:block">
           ☕ DataBrew Analytics — Turning Every Business Into AI-Driven Growth
         </p>
       </div>

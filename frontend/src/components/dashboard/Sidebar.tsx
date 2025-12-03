@@ -26,11 +26,28 @@ interface SidebarProps {
   activePage: string;
   onPageChange: (pageId: string) => void;
   onLogout?: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar({ activePage, onPageChange, onLogout }: SidebarProps) {
+export function Sidebar({ activePage, onPageChange, onLogout, isOpen = false, onClose }: SidebarProps) {
   return (
-    <div className="w-64 h-screen bg-[#fffaf3] border-r border-[#d8c3a5]/30 flex flex-col">
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <div className={`
+        fixed lg:static inset-y-0 left-0 z-50
+        w-64 h-screen bg-[#fffaf3] border-r border-[#d8c3a5]/30 flex flex-col
+        transform transition-transform duration-300 ease-in-out lg:transform-none
+        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
       {/* Logo */}
       <div className="p-6 flex items-center gap-3">
         <div className="w-10 h-10 bg-gradient-to-br from-[#8b5e3c] to-[#b08968] rounded-xl flex items-center justify-center">
@@ -82,5 +99,6 @@ export function Sidebar({ activePage, onPageChange, onLogout }: SidebarProps) {
         </Button>
       </div>
     </div>
+    </>
   );
 }
